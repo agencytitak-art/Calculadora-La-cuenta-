@@ -230,6 +230,23 @@
   .mov button{background:none;border:0;color:var(--acero);cursor:pointer;font-size:16px;padding:4px 6px;line-height:1}
   .mov button:hover{color:var(--rojo)}
 
+  /* ---------- trabajadores ---------- */
+  .trab{display:grid;grid-template-columns:1fr 110px 32px;gap:8px;align-items:center;
+    padding:8px 0;border-bottom:1px dashed var(--linea)}
+  .trab input{padding:10px;border:1px solid var(--tinta);background:var(--blanco);color:var(--tinta);
+    font-family:var(--cuerpo);font-size:14px;min-width:0}
+  .trab input.sueldo{font-family:var(--cifra);text-align:right}
+  .trab button{background:none;border:0;color:var(--acero);cursor:pointer;font-size:16px;padding:4px 6px;line-height:1}
+  .trab button:hover{color:var(--rojo)}
+
+  /* ---------- nota del día ---------- */
+  .nota-dia{margin-top:18px}
+  .nota-dia label{display:block;font-size:12px;color:var(--acero);margin-bottom:6px}
+  .nota-dia textarea{
+    width:100%;padding:10px;border:1px solid var(--tinta);background:var(--blanco);color:var(--tinta);
+    font-family:var(--cuerpo);font-size:14px;resize:vertical;
+  }
+
   /* ---------- fecha del día y exportación ---------- */
   .fecha-dia{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
     margin-top:18px;padding:12px;border:1px solid var(--linea);background:var(--concreto-2)}
@@ -247,7 +264,7 @@
 <div id="app">
   <div class="barra">
     <div class="marca">La <span>Cuenta</span></div>
-    <div class="planta">PLANTA <b>$14.06</b>/kg &nbsp;·&nbsp; SUELDOS <b>$900</b> &nbsp;·&nbsp; CARBURACIÓN <b>$281.20</b></div>
+    <div class="planta">PLANTA <b>$14.06</b>/kg &nbsp;·&nbsp; SUELDOS <b id="cabSueldos">$900</b> &nbsp;·&nbsp; CARBURACIÓN <b>$281.20</b></div>
   </div>
 
   <div class="lienzo">
@@ -272,8 +289,6 @@
             <input type="text" id="gdConcepto" maxlength="40" placeholder="Llanta, válvula, multa…">
             <label for="gdMonto">¿Cuánto costó?</label>
             <input type="number" id="gdMonto" min="1" step="1" placeholder="$0">
-            <label for="gdNota">Nota del día (opcional)</label>
-            <textarea id="gdNota" rows="2" maxlength="140" placeholder="Algo que quieras recordar de este día"></textarea>
             <p class="pie">Este gasto sale de la caja de ahorro, no de la comisión del día. Se registra al guardar.</p>
           </div>
 
@@ -298,6 +313,13 @@
           </div>
           <div class="avisos" id="avisosInv"></div>
           <p class="nota">Total del negocio: 52 tanques. Los picados y vacíos no generan ingreso. Un tanque tarda entre 30 y 35 días en volver a trabajar: 15–20 de reparación más ~15 de llenado.</p>
+        </div>
+
+        <div class="tarjeta">
+          <div class="rotulo">Trabajadores y sueldos</div>
+          <div id="listaTrab"></div>
+          <button class="limpiar" id="btnAddTrab">+ Agregar trabajador</button>
+          <p class="nota">El sueldo es diario, por persona, y se descuenta de la cuenta de cada día. Cada quien puede ganar distinto.</p>
         </div>
       </div>
 
@@ -334,8 +356,8 @@
                 <td id="bruto">$0.00</td>
               </tr>
               <tr class="resta">
-                <td class="concepto">Sueldos<span class="sub">2 trabajadores × $450</span></td>
-                <td>−$900.00</td>
+                <td class="concepto">Sueldos<span class="sub" id="subSueldos">2 trabajadores × $450</span></td>
+                <td id="montoSueldos">−$900.00</td>
               </tr>
               <tr class="resta">
                 <td class="concepto">Costo de planta<span class="sub" id="subPlanta">0 kg × $14.06</span></td>
@@ -366,6 +388,11 @@
           </div>
 
           <div class="avisos" id="avisos"></div>
+
+          <div class="nota-dia">
+            <label for="gdNota">Nota del día (opcional)</label>
+            <textarea id="gdNota" rows="2" maxlength="140" placeholder="No se llenó un tanque, se reparó uno, etc."></textarea>
+          </div>
 
           <div class="fecha-dia">
             <label for="fechaDia">¿De qué día es esta cuenta?</label>
@@ -411,9 +438,7 @@
 <script>
 (function(){
   const PLANTA = 14.06;
-  const SUELDOS = 900;
   const CARBURACION = 20 * PLANTA;      // 281.20
-  const FIJOS = SUELDOS + CARBURACION;  // 1181.20
   const TOTAL_TANQUES = 52;
   const REPARACION_MES = 4 * 420;       // 1680
   const PORC_CAJA = 0.10;               // 10% de la comisión
@@ -423,6 +448,12 @@
     {kg:20, precio:440, stock:34},
     {kg:30, precio:660, stock:12},
     {kg:45, precio:null, stock:1}
+  ];
+
+  // Los sueldos ya no son constantes: cada trabajador tiene el suyo y son editables.
+  let trabajadores = [
+    {nombre:'', sueldo:450},
+    {nombre:'', sueldo:450}
   ];
 
   let vendidos = {10:0, 20:0, 30:0, 45:0};
@@ -457,6 +488,7 @@
   // decimales que desvían las sumas del mes.
   const centavos = n => Math.round(n * 100) / 100;
   const nuevoId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+  const sueldosTotal = () => centavos(trabajadores.reduce((a,t)=> a + (t.sueldo || 0), 0));
   const fechaLocalISO = f => f.getFullYear() + '-' + String(f.getMonth()+1).padStart(2,'0') + '-' + String(f.getDate()).padStart(2,'0');
 
   /* ---------- construir las filas de captura ---------- */
@@ -538,6 +570,52 @@
 
   ['picados','vacios'].forEach(id => $(id).addEventListener('input', inventario));
 
+  /* ---------- trabajadores ---------- */
+  function pintarTrabajadores(){
+    const caja = $('listaTrab');
+    caja.innerHTML = '';
+    trabajadores.forEach((t,i)=>{
+      const fila = document.createElement('div');
+      fila.className = 'trab';
+      fila.innerHTML =
+        '<input type="text" maxlength="20" placeholder="Nombre (opcional)" data-t="'+i+'" data-campo="nombre" aria-label="Nombre del trabajador">' +
+        '<input class="sueldo" type="number" min="0" step="1" data-t="'+i+'" data-campo="sueldo" aria-label="Sueldo diario en pesos">' +
+        '<button data-quita="'+i+'" aria-label="Quitar trabajador">×</button>';
+      fila.querySelector('[data-campo=nombre]').value = t.nombre || '';
+      fila.querySelector('[data-campo=sueldo]').value = t.sueldo || 0;
+      caja.appendChild(fila);
+    });
+    if(!trabajadores.length)
+      caja.innerHTML = '<p class="vacio">Sin trabajadores: no se descuenta sueldo.</p>';
+  }
+
+  $('listaTrab').addEventListener('input', e=>{
+    const i = +e.target.dataset.t;
+    if(isNaN(i) || !trabajadores[i]) return;
+    if(e.target.dataset.campo === 'nombre')
+      trabajadores[i].nombre = e.target.value.trim();
+    else
+      trabajadores[i].sueldo = Math.max(0, parseFloat(e.target.value) || 0);
+    calcular();
+    guardarInventario(); // mismo debounce: persiste a los 600 ms
+  });
+
+  $('listaTrab').addEventListener('click', async e=>{
+    const b = e.target.closest('button[data-quita]');
+    if(!b) return;
+    trabajadores.splice(+b.dataset.quita, 1);
+    pintarTrabajadores();
+    calcular();
+    await persistir();
+  });
+
+  $('btnAddTrab').addEventListener('click', async ()=>{
+    trabajadores.push({nombre:'', sueldo:450});
+    pintarTrabajadores();
+    calcular();
+    await persistir();
+  });
+
   /* ---------- el cálculo ---------- */
   function cuenta(){
     let bruto = 0, kgTotal = 0, tanques = 0;
@@ -549,7 +627,8 @@
       bruto += q * (t.precio !== null ? t.precio : precio45);
     });
     const costoPlanta = kgTotal * PLANTA;
-    const comision = bruto - SUELDOS - costoPlanta - CARBURACION;
+    const sueldos = sueldosTotal();
+    const comision = bruto - sueldos - costoPlanta - CARBURACION;
 
     // La caja recibe el 10% cuando hay comisión; cubre el hueco cuando no la hay.
     let abono = 0, retiro = 0;
@@ -559,7 +638,7 @@
     }
     const neta = comision - abono + retiro;
 
-    return {bruto, kgTotal, tanques, costoPlanta, comision, abono, retiro, neta};
+    return {bruto, kgTotal, tanques, costoPlanta, sueldos, comision, abono, retiro, neta};
   }
 
   function recalcSaldo(){
@@ -575,6 +654,12 @@
 
     $('bruto').textContent = dinero(c.bruto);
     $('subBruto').textContent = c.tanques + (c.tanques===1?' tanque · ':' tanques · ') + c.kgTotal + ' kg';
+    $('cabSueldos').textContent = dinero(c.sueldos);
+    $('montoSueldos').textContent = '−' + dinero(c.sueldos);
+    $('subSueldos').textContent = trabajadores.length
+      ? trabajadores.length + (trabajadores.length===1?' trabajador: ':' trabajadores: ') +
+        trabajadores.map(t=>dinero(t.sueldo||0)).join(' + ')
+      : 'sin trabajadores capturados';
     $('planta').textContent = '−' + dinero(c.costoPlanta);
     $('subPlanta').textContent = c.kgTotal + ' kg × $14.06';
     $('comision').textContent = dinero(c.comision);
@@ -645,9 +730,9 @@
       [...segs].forEach(s => s.style.width = '0');
       return;
     }
-    const base = Math.max(c.bruto, SUELDOS + c.costoPlanta + CARBURACION);
+    const base = Math.max(c.bruto, c.sueldos + c.costoPlanta + CARBURACION);
     const pct = v => (v / base * 100) + '%';
-    segs[0].style.width = pct(SUELDOS);
+    segs[0].style.width = pct(c.sueldos);
     segs[1].style.width = pct(c.costoPlanta);
     segs[2].style.width = pct(CARBURACION);
     segs[3].style.width = pct(c.abono);
@@ -688,8 +773,9 @@
       add('Comisión por debajo de $500. Día flojo.');
 
     if(c.tanques === 0){
-      const faltan = Math.ceil(FIJOS / (440 - 20*PLANTA));
-      add('Punto de equilibrio: ' + faltan + ' tanques de 20 kg cubren los ' + dinero(FIJOS) + ' de sueldos y carburación.', true);
+      const fijos = c.sueldos + CARBURACION;
+      const faltan = Math.ceil(fijos / (440 - 20*PLANTA));
+      add('Punto de equilibrio: ' + faltan + ' tanques de 20 kg cubren los ' + dinero(fijos) + ' de sueldos y carburación.', true);
     }
   }
 
@@ -738,6 +824,7 @@
         const d = JSON.parse(crudo);
         dias = d.dias || [];
         movimientos = d.movimientos || [];
+        if(Array.isArray(d.trabajadores)) trabajadores = d.trabajadores;
         if(d.inventario){
           $('picados').value = d.inventario.picados;
           $('vacios').value = d.inventario.vacios;
@@ -748,6 +835,7 @@
       movimientos = [];
     }
     if(migrar()) await persistir();
+    pintarTrabajadores();
     pintarHistorial();
     inventario();
     calcular();
@@ -758,6 +846,7 @@
       await store.set('gaslp:datos', JSON.stringify({
         dias,
         movimientos,
+        trabajadores,
         inventario:{
           picados: parseInt($('picados').value,10) || 0,
           vacios: parseInt($('vacios').value,10) || 0
@@ -828,6 +917,7 @@
       tanques: c.tanques,
       kg: c.kgTotal,
       bruto: centavos(c.bruto),
+      sueldos: c.sueldos,
       comision: centavos(c.comision),
       abono: centavos(c.abono),
       retiro: centavos(c.retiro),
@@ -1025,12 +1115,12 @@
       alert('Todavía no hay días guardados que exportar.');
       return;
     }
-    const filas = [['Fecha','Tanques','Kg','Venta bruta','Comisión','Abono a caja','Retiro de caja','Gasto imprevisto','Monto del gasto','Nota']];
+    const filas = [['Fecha','Tanques','Kg','Venta bruta','Sueldos','Comisión','Abono a caja','Retiro de caja','Gasto imprevisto','Monto del gasto','Nota']];
     // Del más viejo al más nuevo, como lo leería el contador.
     [...dias].reverse().forEach(d=>{
       filas.push([
         csvFecha(d.fecha), d.tanques, d.kg,
-        csvMonto(d.bruto), csvMonto(d.comision), csvMonto(d.abono), csvMonto(d.retiro),
+        csvMonto(d.bruto), csvMonto(d.sueldos != null ? d.sueldos : 900), csvMonto(d.comision), csvMonto(d.abono), csvMonto(d.retiro),
         d.gasto ? d.gasto.concepto : '', d.gasto ? csvMonto(d.gasto.monto) : '',
         d.nota || ''
       ]);
