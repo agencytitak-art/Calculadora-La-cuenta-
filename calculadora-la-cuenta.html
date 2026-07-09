@@ -1,0 +1,1065 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La Cuenta — Gas LP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --concreto:#E7E8E3;
+    --concreto-2:#DDDFD8;
+    --tinta:#16181A;
+    --acero:#5A6167;
+    --linea:#C3C6BF;
+    --amarillo:#E6B31E;
+    --rojo:#A83A2C;
+    --blanco:#F6F6F3;
+    --display:'Oswald','Arial Narrow',sans-serif;
+    --cuerpo:'IBM Plex Sans',system-ui,sans-serif;
+    --cifra:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  #app{
+    font-family:var(--cuerpo);
+    color:var(--tinta);
+    background:var(--concreto);
+    line-height:1.45;
+    padding:0 0 48px;
+  }
+  #app :focus-visible{outline:2px solid var(--tinta);outline-offset:2px}
+
+  /* ---------- encabezado ---------- */
+  .barra{
+    background:var(--tinta);color:var(--blanco);
+    padding:18px 20px;display:flex;flex-wrap:wrap;gap:16px;
+    align-items:baseline;justify-content:space-between;
+  }
+  .marca{font-family:var(--display);font-weight:600;font-size:26px;
+    letter-spacing:.14em;text-transform:uppercase;line-height:1}
+  .marca span{color:var(--amarillo)}
+  .planta{font-family:var(--cifra);font-size:12px;color:var(--linea);letter-spacing:.04em}
+  .planta b{color:var(--blanco);font-weight:500}
+
+  .lienzo{max-width:1080px;margin:0 auto;padding:20px}
+  .rejilla{display:grid;gap:20px}
+  @media(min-width:940px){.rejilla{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);align-items:start}}
+
+  .tarjeta{background:var(--blanco);border:1px solid var(--linea);padding:20px}
+  .tarjeta + .tarjeta{margin-top:20px}
+
+  .rotulo{
+    font-family:var(--display);text-transform:uppercase;letter-spacing:.18em;
+    font-size:12px;font-weight:500;color:var(--acero);
+    padding-bottom:10px;margin-bottom:16px;border-bottom:1px solid var(--linea);
+  }
+
+  /* ---------- captura ---------- */
+  .fila{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px dashed var(--linea)}
+  .fila:last-of-type{border-bottom:0}
+  .tanque{flex:1;min-width:0}
+  .tanque .kg{font-family:var(--display);font-size:22px;font-weight:500;line-height:1.1}
+  .tanque .meta{font-family:var(--cifra);font-size:11px;color:var(--acero);letter-spacing:.02em}
+  .agotado{color:var(--rojo);font-weight:600}
+
+  .stepper{display:flex;align-items:center;gap:2px}
+  .stepper button{
+    width:40px;height:40px;border:1px solid var(--tinta);background:var(--blanco);
+    font-family:var(--display);font-size:20px;line-height:1;cursor:pointer;color:var(--tinta);
+    transition:background .12s,color .12s;
+  }
+  .stepper button:hover:not(:disabled){background:var(--tinta);color:var(--blanco)}
+  .stepper button:disabled{opacity:.28;cursor:not-allowed}
+  .stepper .n{
+    width:52px;height:40px;border:1px solid var(--tinta);border-left:0;border-right:0;
+    text-align:center;font-family:var(--cifra);font-size:17px;font-weight:500;
+    background:var(--blanco);color:var(--tinta);-moz-appearance:textfield;
+  }
+  .stepper .n::-webkit-outer-spin-button,.stepper .n::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+  .precio45{display:none;margin-top:4px;padding:12px;background:var(--concreto-2);border:1px solid var(--linea)}
+  .precio45.visible{display:block}
+  .precio45 label{display:block;font-size:12px;color:var(--acero);margin-bottom:6px}
+  .precio45 input{
+    width:100%;padding:9px 10px;border:1px solid var(--tinta);background:var(--blanco);
+    font-family:var(--cifra);font-size:16px;color:var(--tinta);
+  }
+
+  .limpiar{
+    margin-top:16px;background:none;border:0;padding:6px 0;cursor:pointer;
+    font-family:var(--cuerpo);font-size:13px;color:var(--acero);text-decoration:underline;text-underline-offset:3px;
+  }
+  .limpiar:hover{color:var(--tinta)}
+
+  /* ---------- resultado ---------- */
+  .sobrante{background:var(--amarillo);border:1px solid var(--tinta);padding:22px 20px;margin-bottom:20px}
+  .sobrante.negativo{background:var(--rojo)}
+  .sobrante.negativo .cifra,.sobrante.negativo .rot,.sobrante.negativo .pie{color:var(--blanco)}
+  .sobrante .rot{
+    font-family:var(--display);text-transform:uppercase;letter-spacing:.18em;
+    font-size:12px;font-weight:500;margin-bottom:2px;
+  }
+  .sobrante .cifra{font-family:var(--cifra);font-size:clamp(34px,9vw,50px);font-weight:600;letter-spacing:-.02em;line-height:1.05}
+  .sobrante .pie{font-size:13px;margin-top:6px;opacity:.85}
+
+  /* firma: la barra que se va comiendo el bruto */
+  .barra-cuenta{display:flex;height:38px;border:1px solid var(--tinta);overflow:hidden;margin-bottom:8px}
+  .seg{transition:width .35s ease;min-width:0;position:relative}
+  .seg-sueldos{background:var(--acero)}
+  .seg-planta{background:var(--tinta)}
+  .seg-carbu{background:var(--linea)}
+  .seg-comision{background:var(--amarillo)}
+  .seg-perdida{background:var(--rojo)}
+  .leyenda{display:flex;flex-wrap:wrap;gap:14px;font-size:11px;color:var(--acero);
+    font-family:var(--cifra);letter-spacing:.02em;margin-bottom:20px}
+  .leyenda i{display:inline-block;width:10px;height:10px;margin-right:5px;border:1px solid var(--tinta);vertical-align:-1px}
+
+  table{width:100%;border-collapse:collapse;font-family:var(--cifra);font-size:14px}
+  td{padding:9px 0;border-bottom:1px solid var(--linea)}
+  td:last-child{text-align:right;white-space:nowrap;font-weight:500}
+  .concepto{font-family:var(--cuerpo);font-size:14px}
+  .sub{display:block;font-family:var(--cifra);font-size:11px;color:var(--acero)}
+  .resta td:last-child{color:var(--rojo)}
+  .total td{border-bottom:0;border-top:2px solid var(--tinta);font-weight:600;padding-top:12px}
+
+  .avisos{margin-top:16px;display:grid;gap:8px}
+  .aviso{
+    font-size:13px;padding:10px 12px;border-left:3px solid var(--rojo);
+    background:var(--concreto-2);color:var(--tinta);
+  }
+  .aviso.ok{border-left-color:var(--acero)}
+
+  /* ---------- botones ---------- */
+  .accion{
+    width:100%;margin-top:20px;padding:15px;border:0;cursor:pointer;
+    background:var(--tinta);color:var(--blanco);
+    font-family:var(--display);text-transform:uppercase;letter-spacing:.16em;font-size:14px;font-weight:500;
+  }
+  .accion:hover:not(:disabled){background:var(--acero)}
+  .accion:disabled{opacity:.35;cursor:not-allowed}
+  .estado{margin-top:10px;font-size:12px;color:var(--acero);text-align:center;min-height:16px;font-family:var(--cifra)}
+
+  /* ---------- inventario ---------- */
+  .inv{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .inv label{display:block;font-size:11px;color:var(--acero);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+  .inv input{
+    width:100%;padding:10px;border:1px solid var(--tinta);background:var(--blanco);
+    font-family:var(--cifra);font-size:18px;text-align:center;color:var(--tinta);
+  }
+  .inv .calc{background:var(--concreto-2);display:block;padding:10px;text-align:center;
+    font-family:var(--cifra);font-size:18px;border:1px solid var(--linea)}
+
+  /* ---------- historial ---------- */
+  .dia{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:11px 0;border-bottom:1px solid var(--linea);font-size:14px}
+  .dia .f{font-family:var(--cifra);font-size:12px;color:var(--acero)}
+  .dia .t{font-size:12px;color:var(--acero)}
+  .dia .c{font-family:var(--cifra);font-weight:600}
+  .dia .c.neg{color:var(--rojo)}
+  .dia button{background:none;border:0;color:var(--acero);cursor:pointer;font-size:16px;padding:4px 6px;line-height:1}
+  .dia button:hover{color:var(--rojo)}
+  .vacio{font-size:14px;color:var(--acero);padding:8px 0}
+
+  .resumen{margin-top:18px;padding-top:16px;border-top:2px solid var(--tinta)}
+  .resumen .r{display:flex;justify-content:space-between;padding:5px 0;font-size:14px}
+  .resumen .r span:last-child{font-family:var(--cifra);font-weight:500}
+  .resumen .neta{margin-top:6px;padding-top:10px;border-top:1px dashed var(--linea);font-weight:600}
+
+  .nota{font-size:12px;color:var(--acero);margin-top:14px;line-height:1.5}
+
+  /* ---------- desglose del costo de planta ---------- */
+  .desglose{margin-top:20px;border:1px solid var(--linea);background:var(--concreto-2);padding:14px 16px}
+  .rotulo-mini{font-family:var(--display);text-transform:uppercase;letter-spacing:.16em;
+    font-size:11px;font-weight:500;color:var(--acero);margin-bottom:10px}
+  .dg{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:baseline;
+    font-family:var(--cifra);font-size:13px;padding:5px 0}
+  .dg .kg{text-align:right;color:var(--acero);min-width:64px}
+  .dg .mx{text-align:right;min-width:88px;font-weight:500}
+  .dg.suma{border-top:1px solid var(--tinta);margin-top:6px;padding-top:8px;font-weight:600}
+  .dg.aparte{border-top:1px dashed var(--linea);margin-top:6px;padding-top:8px;color:var(--acero)}
+  .desglose .vacio{font-family:var(--cuerpo);font-size:13px;color:var(--acero);padding:2px 0}
+
+  /* ---------- pestaña de gasto del día ---------- */
+  .pestana{
+    width:100%;margin-top:16px;padding:12px;cursor:pointer;text-align:left;
+    background:var(--concreto-2);border:1px dashed var(--acero);color:var(--tinta);
+    font-family:var(--cuerpo);font-size:14px;
+  }
+  .pestana:hover{border-style:solid}
+  .pestana .signo{font-family:var(--cifra);font-weight:600;margin-right:8px}
+  .caja-dia{display:none;border:1px solid var(--tinta);border-top:0;padding:16px}
+  .caja-dia.abierta{display:block}
+  .caja-dia label{display:block;font-size:12px;color:var(--acero);margin:0 0 6px}
+  .caja-dia input,.caja-dia textarea{
+    width:100%;padding:10px;border:1px solid var(--tinta);background:var(--blanco);color:var(--tinta);
+    font-family:var(--cuerpo);font-size:14px;margin-bottom:12px;resize:vertical;
+  }
+  .caja-dia input[type=number]{font-family:var(--cifra)}
+  .caja-dia .pie{font-size:12px;color:var(--acero);margin:0}
+  .dia .nota{font-size:12px;color:var(--acero);font-style:italic}
+
+  /* ---------- caja de ahorro ---------- */
+  .seg-caja{background:#B08A12}
+  tr.final td{border-top:1px dashed var(--linea);padding-top:12px}
+  .abono td:last-child{color:#8A6D0C}
+
+  .saldo{border:1px solid var(--tinta);padding:18px 20px;margin-bottom:18px;
+    background:repeating-linear-gradient(135deg,var(--blanco),var(--blanco) 8px,var(--concreto-2) 8px,var(--concreto-2) 9px)}
+  .saldo .rot{font-family:var(--display);text-transform:uppercase;letter-spacing:.18em;
+    font-size:12px;font-weight:500;color:var(--acero);margin-bottom:2px}
+  .saldo .cifra{font-family:var(--cifra);font-size:clamp(28px,7vw,38px);font-weight:600;letter-spacing:-.02em;line-height:1.1}
+  .saldo .pie{font-size:13px;color:var(--acero);margin-top:6px}
+  .saldo .cifra.neg{color:var(--rojo)}
+
+  .gasto{display:grid;gap:8px;grid-template-columns:1fr 110px}
+  .gasto input{padding:11px;border:1px solid var(--tinta);background:var(--blanco);color:var(--tinta);
+    font-family:var(--cuerpo);font-size:14px;min-width:0}
+  .gasto input[type=number]{font-family:var(--cifra)}
+  .gasto .accion{grid-column:1 / -1;margin-top:2px}
+
+  .movs{margin-top:18px}
+  .mov{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 0;border-bottom:1px solid var(--linea);font-size:13px}
+  .mov .f{font-family:var(--cifra);font-size:11px;color:var(--acero)}
+  .mov .m{font-family:var(--cifra);font-weight:500}
+  .mov .m.entra{color:#8A6D0C}
+  .mov .m.sale{color:var(--rojo)}
+  .mov button{background:none;border:0;color:var(--acero);cursor:pointer;font-size:16px;padding:4px 6px;line-height:1}
+  .mov button:hover{color:var(--rojo)}
+
+  /* ---------- fecha del día y exportación ---------- */
+  .fecha-dia{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    margin-top:18px;padding:12px;border:1px solid var(--linea);background:var(--concreto-2)}
+  .fecha-dia label{font-size:12px;color:var(--acero)}
+  .fecha-dia input{padding:9px 10px;border:1px solid var(--tinta);background:var(--blanco);
+    font-family:var(--cifra);font-size:15px;color:var(--tinta)}
+  .accion.secundaria{background:none;border:1px solid var(--tinta);color:var(--tinta);margin-top:14px}
+  .accion.secundaria:hover:not(:disabled){background:var(--tinta);color:var(--blanco)}
+
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="barra">
+    <div class="marca">La <span>Cuenta</span></div>
+    <div class="planta">PLANTA <b>$14.06</b>/kg &nbsp;·&nbsp; SUELDOS <b>$900</b> &nbsp;·&nbsp; CARBURACIÓN <b>$281.20</b></div>
+  </div>
+
+  <div class="lienzo">
+    <div class="rejilla">
+
+      <!-- columna izquierda -->
+      <div>
+        <div class="tarjeta">
+          <div class="rotulo">Tanques vendidos hoy</div>
+          <div id="filas"></div>
+
+          <div class="precio45" id="p45box">
+            <label for="p45">¿En cuánto se vendió el tanque de 45 kg?</label>
+            <input type="number" id="p45" min="0" step="1" placeholder="Precio en pesos">
+          </div>
+
+          <button class="pestana" id="tabGasto" aria-expanded="false" aria-controls="gastoDiaBox">
+            <span class="signo">+</span>Gasto imprevisto de hoy <span style="color:var(--acero)">(opcional)</span>
+          </button>
+          <div class="caja-dia" id="gastoDiaBox">
+            <label for="gdConcepto">¿De qué fue el gasto?</label>
+            <input type="text" id="gdConcepto" maxlength="40" placeholder="Llanta, válvula, multa…">
+            <label for="gdMonto">¿Cuánto costó?</label>
+            <input type="number" id="gdMonto" min="1" step="1" placeholder="$0">
+            <label for="gdNota">Nota del día (opcional)</label>
+            <textarea id="gdNota" rows="2" maxlength="140" placeholder="Algo que quieras recordar de este día"></textarea>
+            <p class="pie">Este gasto sale de la caja de ahorro, no de la comisión del día. Se registra al guardar.</p>
+          </div>
+
+          <button class="limpiar" id="btnLimpiar">Empezar de cero</button>
+        </div>
+
+        <div class="tarjeta">
+          <div class="rotulo">Censo de tanques</div>
+          <div class="inv">
+            <div>
+              <label for="picados">Picados</label>
+              <input type="number" id="picados" min="0" value="4">
+            </div>
+            <div>
+              <label for="vacios">Vacíos</label>
+              <input type="number" id="vacios" min="0" value="0">
+            </div>
+            <div>
+              <label>Trabajando</label>
+              <span class="calc" id="trabajando">48</span>
+            </div>
+          </div>
+          <div class="avisos" id="avisosInv"></div>
+          <p class="nota">Total del negocio: 52 tanques. Los picados y vacíos no generan ingreso. Un tanque tarda entre 30 y 35 días en volver a trabajar: 15–20 de reparación más ~15 de llenado.</p>
+        </div>
+      </div>
+
+      <!-- columna derecha -->
+      <div>
+        <div class="tarjeta">
+          <div class="rotulo">Lo que sobra</div>
+
+          <div class="sobrante" id="sobrante">
+            <div class="rot">Comisión del día</div>
+            <div class="cifra" id="comision">$0.00</div>
+            <div class="pie" id="pieComision">Captura los tanques vendidos para calcular.</div>
+          </div>
+
+          <div class="barra-cuenta" id="barra">
+            <div class="seg seg-sueldos" style="width:0"></div>
+            <div class="seg seg-planta" style="width:0"></div>
+            <div class="seg seg-carbu" style="width:0"></div>
+            <div class="seg seg-caja" style="width:0"></div>
+            <div class="seg seg-comision" style="width:0"></div>
+          </div>
+          <div class="leyenda">
+            <span><i style="background:var(--acero)"></i>Sueldos</span>
+            <span><i style="background:var(--tinta)"></i>Planta</span>
+            <span><i style="background:var(--linea)"></i>Carburación</span>
+            <span><i style="background:#B08A12"></i>Caja</span>
+            <span><i style="background:var(--amarillo)"></i>Comisión</span>
+          </div>
+
+          <table>
+            <tbody>
+              <tr>
+                <td class="concepto">Venta bruta<span class="sub" id="subBruto">0 tanques · 0 kg</span></td>
+                <td id="bruto">$0.00</td>
+              </tr>
+              <tr class="resta">
+                <td class="concepto">Sueldos<span class="sub">2 trabajadores × $450</span></td>
+                <td>−$900.00</td>
+              </tr>
+              <tr class="resta">
+                <td class="concepto">Costo de planta<span class="sub" id="subPlanta">0 kg × $14.06</span></td>
+                <td id="planta">−$0.00</td>
+              </tr>
+              <tr class="resta">
+                <td class="concepto">Carburación<span class="sub">20 kg × $14.06</span></td>
+                <td>−$281.20</td>
+              </tr>
+              <tr class="total">
+                <td class="concepto">Comisión</td>
+                <td id="comision2">$0.00</td>
+              </tr>
+              <tr class="abono">
+                <td class="concepto" id="lblCaja">Caja de ahorro<span class="sub">10% de la comisión</span></td>
+                <td id="montoCaja">−$0.00</td>
+              </tr>
+              <tr class="total final">
+                <td class="concepto">Queda para los papás</td>
+                <td id="neta">$0.00</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="desglose">
+            <div class="rotulo-mini">Cómo se sacó el costo de planta</div>
+            <div id="desgloseFilas"><p class="vacio">Captura los tanques vendidos y aquí aparece el cálculo.</p></div>
+          </div>
+
+          <div class="avisos" id="avisos"></div>
+
+          <div class="fecha-dia">
+            <label for="fechaDia">¿De qué día es esta cuenta?</label>
+            <input type="date" id="fechaDia">
+          </div>
+
+          <button class="accion" id="btnGuardar" disabled>Guardar el día</button>
+          <div class="estado" id="estado"></div>
+        </div>
+
+        <div class="tarjeta">
+          <div class="rotulo">Caja de ahorro</div>
+
+          <div class="saldo">
+            <div class="rot">Saldo disponible</div>
+            <div class="cifra" id="saldoCaja">$0.00</div>
+            <div class="pie" id="pieCaja">Cada día se abona el 10% de la comisión.</div>
+          </div>
+
+          <div class="gasto">
+            <input type="text" id="gastoConcepto" placeholder="Gasto imprevisto (llanta, válvula…)" maxlength="40">
+            <input type="number" id="gastoMonto" placeholder="$0" min="1" step="1">
+            <button class="accion" id="btnGasto">Descontar de la caja</button>
+          </div>
+          <div class="avisos" id="avisosCaja"></div>
+
+          <div class="movs" id="movs"></div>
+          <button class="limpiar" id="btnCSVCaja">Exportar movimientos a CSV</button>
+        </div>
+
+        <div class="tarjeta">
+          <div class="rotulo">Días guardados</div>
+          <div id="historial"><p class="vacio">Todavía no hay días guardados.</p></div>
+          <div class="resumen" id="resumen" style="display:none"></div>
+          <button class="accion secundaria" id="btnCSV">Exportar días a CSV</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const PLANTA = 14.06;
+  const SUELDOS = 900;
+  const CARBURACION = 20 * PLANTA;      // 281.20
+  const FIJOS = SUELDOS + CARBURACION;  // 1181.20
+  const TOTAL_TANQUES = 52;
+  const REPARACION_MES = 4 * 420;       // 1680
+  const PORC_CAJA = 0.10;               // 10% de la comisión
+
+  const TANQUES = [
+    {kg:10, precio:225, stock:5},
+    {kg:20, precio:440, stock:34},
+    {kg:30, precio:660, stock:12},
+    {kg:45, precio:null, stock:1}
+  ];
+
+  let vendidos = {10:0, 20:0, 30:0, 45:0};
+  let precio45 = 0;
+  let dias = [];
+  let movimientos = [];
+  let saldo = 0;
+  let hayStorage = true;
+
+  // Adaptador: window.storage solo existe en los artifacts de Claude.
+  // Fuera de ahí (file://, servidor) se cae a localStorage con la misma interfaz.
+  const store = {
+    async get(key){
+      if(typeof window.storage !== 'undefined'){
+        const r = await window.storage.get(key);
+        return r && r.value != null ? r.value : null;
+      }
+      return localStorage.getItem(key);
+    },
+    async set(key, value){
+      if(typeof window.storage !== 'undefined'){
+        await window.storage.set(key, value);
+        return;
+      }
+      localStorage.setItem(key, value);
+    }
+  };
+
+  const $ = id => document.getElementById(id);
+  const dinero = n => (n<0 ? '−$' : '$') + Math.abs(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+  // El dinero se guarda redondeado a centavos; sin esto los abonos del 10% arrastran
+  // decimales que desvían las sumas del mes.
+  const centavos = n => Math.round(n * 100) / 100;
+  const nuevoId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+  const fechaLocalISO = f => f.getFullYear() + '-' + String(f.getMonth()+1).padStart(2,'0') + '-' + String(f.getDate()).padStart(2,'0');
+
+  /* ---------- construir las filas de captura ---------- */
+  TANQUES.forEach(t=>{
+    const fila = document.createElement('div');
+    fila.className = 'fila';
+    fila.innerHTML =
+      '<div class="tanque">' +
+        '<div class="kg">'+t.kg+' kg</div>' +
+        '<div class="meta" id="meta'+t.kg+'">'+(t.precio?'$'+t.precio:'precio variable')+' · '+t.stock+' en la camioneta</div>' +
+      '</div>' +
+      '<div class="stepper">' +
+        '<button type="button" data-kg="'+t.kg+'" data-d="-1" aria-label="Quitar un tanque de '+t.kg+' kg">−</button>' +
+        '<input class="n" type="number" min="0" max="'+t.stock+'" value="0" id="q'+t.kg+'" aria-label="Tanques de '+t.kg+' kg vendidos">' +
+        '<button type="button" data-kg="'+t.kg+'" data-d="1" aria-label="Agregar un tanque de '+t.kg+' kg">+</button>' +
+      '</div>';
+    $('filas').appendChild(fila);
+  });
+
+  $('filas').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-kg]');
+    if(!b) return;
+    const kg = +b.dataset.kg;
+    const t = TANQUES.find(x=>x.kg===kg);
+    vendidos[kg] = Math.max(0, Math.min(t.stock, vendidos[kg] + (+b.dataset.d)));
+    $('q'+kg).value = vendidos[kg];
+    calcular();
+  });
+
+  $('filas').addEventListener('input', e=>{
+    if(!e.target.classList.contains('n')) return;
+    const kg = +e.target.id.slice(1);
+    const t = TANQUES.find(x=>x.kg===kg);
+    let v = parseInt(e.target.value,10);
+    if(isNaN(v) || v<0) v = 0;
+    vendidos[kg] = Math.min(t.stock, v);
+    if(v !== vendidos[kg]) e.target.value = vendidos[kg];
+    calcular();
+  });
+
+  $('p45').addEventListener('input', e=>{
+    precio45 = Math.max(0, parseFloat(e.target.value) || 0);
+    calcular();
+  });
+
+  $('tabGasto').addEventListener('click', ()=>{
+    const box = $('gastoDiaBox');
+    const abierta = box.classList.toggle('abierta');
+    $('tabGasto').setAttribute('aria-expanded', abierta);
+    $('tabGasto').querySelector('.signo').textContent = abierta ? '−' : '+';
+    if(abierta) $('gdConcepto').focus();
+  });
+
+  ['gdConcepto','gdMonto'].forEach(id => $(id).addEventListener('input', calcular));
+
+  function gastoDelDia(){
+    const concepto = $('gdConcepto').value.trim();
+    const monto = parseFloat($('gdMonto').value) || 0;
+    return {concepto, monto, completo: !!concepto && monto > 0, aMedias: (!!concepto) !== (monto > 0)};
+  }
+
+  $('btnLimpiar').addEventListener('click', ()=>{
+    vendidos = {10:0,20:0,30:0,45:0};
+    precio45 = 0;
+    TANQUES.forEach(t=>{ $('q'+t.kg).value = 0; });
+    $('p45').value = '';
+    $('gdConcepto').value = '';
+    $('gdMonto').value = '';
+    $('gdNota').value = '';
+    ponFechaHoy();
+    calcular();
+  });
+
+  function ponFechaHoy(){
+    const hoy = fechaLocalISO(new Date());
+    $('fechaDia').value = hoy;
+    $('fechaDia').max = hoy;
+  }
+
+  ['picados','vacios'].forEach(id => $(id).addEventListener('input', inventario));
+
+  /* ---------- el cálculo ---------- */
+  function cuenta(){
+    let bruto = 0, kgTotal = 0, tanques = 0;
+    TANQUES.forEach(t=>{
+      const q = vendidos[t.kg];
+      if(!q) return;
+      tanques += q;
+      kgTotal += q * t.kg;
+      bruto += q * (t.precio !== null ? t.precio : precio45);
+    });
+    const costoPlanta = kgTotal * PLANTA;
+    const comision = bruto - SUELDOS - costoPlanta - CARBURACION;
+
+    // La caja recibe el 10% cuando hay comisión; cubre el hueco cuando no la hay.
+    let abono = 0, retiro = 0;
+    if(tanques > 0){
+      if(comision > 0) abono = comision * PORC_CAJA;
+      else if(comision < 0) retiro = Math.min(saldo, -comision);
+    }
+    const neta = comision - abono + retiro;
+
+    return {bruto, kgTotal, tanques, costoPlanta, comision, abono, retiro, neta};
+  }
+
+  function recalcSaldo(){
+    saldo = movimientos.reduce((a,m)=> a + (m.tipo === 'abono' ? m.monto : -m.monto), 0);
+  }
+
+  function calcular(){
+    recalcSaldo();
+    const c = cuenta();
+    const hay = c.tanques > 0;
+
+    $('p45box').classList.toggle('visible', vendidos[45] > 0);
+
+    $('bruto').textContent = dinero(c.bruto);
+    $('subBruto').textContent = c.tanques + (c.tanques===1?' tanque · ':' tanques · ') + c.kgTotal + ' kg';
+    $('planta').textContent = '−' + dinero(c.costoPlanta);
+    $('subPlanta').textContent = c.kgTotal + ' kg × $14.06';
+    $('comision').textContent = dinero(c.comision);
+    $('comision2').textContent = dinero(c.comision);
+
+    if(c.retiro > 0){
+      $('lblCaja').innerHTML = 'Retiro de la caja<span class="sub">para salir tablas</span>';
+      $('montoCaja').textContent = '+' + dinero(c.retiro);
+    } else {
+      $('lblCaja').innerHTML = 'Caja de ahorro<span class="sub">10% de la comisión</span>';
+      $('montoCaja').textContent = '−' + dinero(c.abono);
+    }
+    $('neta').textContent = dinero(c.neta);
+
+    $('sobrante').classList.toggle('negativo', hay && c.comision < 0);
+
+    if(!hay){
+      $('pieComision').textContent = 'Captura los tanques vendidos para calcular.';
+    } else if(c.comision < 0){
+      $('pieComision').textContent = 'Hoy la venta no alcanzó a cubrir sueldos, planta y carburación.';
+    } else {
+      $('pieComision').textContent = 'Se abonan ' + dinero(c.abono) + ' a la caja de ahorro.';
+    }
+
+    dibujarBarra(c);
+    dibujarDesglose(c);
+    avisar(c);
+    pintarCaja();
+
+    const g = gastoDelDia();
+    $('btnGuardar').disabled = !hay || (vendidos[45] > 0 && precio45 <= 0) || g.aMedias;
+    $('estado').textContent = '';
+  }
+
+  function dibujarDesglose(c){
+    const caja = $('desgloseFilas');
+    if(c.tanques === 0){
+      caja.innerHTML = '<p class="vacio">Captura los tanques vendidos y aquí aparece el cálculo.</p>';
+      return;
+    }
+    let html = '';
+    TANQUES.forEach(t=>{
+      const q = vendidos[t.kg];
+      if(!q) return;
+      const kg = q * t.kg;
+      html += '<div class="dg">' +
+        '<span>' + q + ' × ' + t.kg + ' kg</span>' +
+        '<span class="kg">' + kg + ' kg</span>' +
+        '<span class="mx">' + dinero(kg * PLANTA) + '</span>' +
+      '</div>';
+    });
+    html += '<div class="dg suma">' +
+      '<span>' + c.kgTotal + ' kg × $14.06</span>' +
+      '<span class="kg"></span>' +
+      '<span class="mx">' + dinero(c.costoPlanta) + '</span>' +
+    '</div>';
+    html += '<div class="dg aparte">' +
+      '<span>Carburación (se cobra aparte)</span>' +
+      '<span class="kg">20 kg</span>' +
+      '<span class="mx">' + dinero(CARBURACION) + '</span>' +
+    '</div>';
+    caja.innerHTML = html;
+  }
+
+  function dibujarBarra(c){
+    const segs = $('barra').children;
+    if(c.bruto <= 0){
+      [...segs].forEach(s => s.style.width = '0');
+      return;
+    }
+    const base = Math.max(c.bruto, SUELDOS + c.costoPlanta + CARBURACION);
+    const pct = v => (v / base * 100) + '%';
+    segs[0].style.width = pct(SUELDOS);
+    segs[1].style.width = pct(c.costoPlanta);
+    segs[2].style.width = pct(CARBURACION);
+    segs[3].style.width = pct(c.abono);
+    segs[4].style.width = pct(Math.max(0, c.comision - c.abono));
+    segs[4].className = 'seg ' + (c.comision < 0 ? 'seg-perdida' : 'seg-comision');
+    if(c.comision < 0) segs[4].style.width = pct(-c.comision);
+  }
+
+  function avisar(c){
+    const caja = $('avisos');
+    caja.innerHTML = '';
+    const add = (txt, ok) => {
+      const d = document.createElement('div');
+      d.className = 'aviso' + (ok ? ' ok' : '');
+      d.textContent = txt;
+      caja.appendChild(d);
+    };
+
+    if(vendidos[45] > 0 && precio45 <= 0)
+      add('Falta el precio del tanque de 45 kg.');
+
+    const g = gastoDelDia();
+    if(g.aMedias)
+      add('El gasto imprevisto está a medias: falta ' + (g.concepto ? 'el monto' : 'el concepto') + '.');
+    else if(g.completo)
+      add('Al guardar, se descontarán ' + dinero(g.monto) + ' de la caja por "' + g.concepto + '".', true);
+
+    if(c.tanques > 0 && c.comision < 0){
+      const hueco = -c.comision - c.retiro;
+      if(c.retiro > 0 && hueco <= 0.005)
+        add('Comisión negativa. La caja de ahorro cubre los ' + dinero(c.retiro) + ' y el día sale tablas.');
+      else if(c.retiro > 0)
+        add('La caja solo alcanza para ' + dinero(c.retiro) + '. Quedan ' + dinero(hueco) + ' descubiertos.');
+      else
+        add('Comisión negativa de ' + dinero(-c.comision) + ' y la caja está vacía.');
+    }
+    else if(c.tanques > 0 && c.comision < 500)
+      add('Comisión por debajo de $500. Día flojo.');
+
+    if(c.tanques === 0){
+      const faltan = Math.ceil(FIJOS / (440 - 20*PLANTA));
+      add('Punto de equilibrio: ' + faltan + ' tanques de 20 kg cubren los ' + dinero(FIJOS) + ' de sueldos y carburación.', true);
+    }
+  }
+
+  function inventario(){
+    const p = Math.max(0, parseInt($('picados').value,10) || 0);
+    const v = Math.max(0, parseInt($('vacios').value,10) || 0);
+    const t = TOTAL_TANQUES - p - v;
+    $('trabajando').textContent = t;
+
+    const caja = $('avisosInv');
+    caja.innerHTML = '';
+    const add = txt => {
+      const d = document.createElement('div');
+      d.className = 'aviso';
+      d.textContent = txt;
+      caja.appendChild(d);
+    };
+    if(t < 0) add('El censo no cuadra: picados más vacíos pasan de 52.');
+    if(p < 4) add('Siempre debe haber mínimo 4 picados. Revisa el dato.');
+    if(p > 8) add(p + ' picados es mucho. Se están dañando más rápido de lo que se reparan.');
+
+    guardarInventario(p, v);
+  }
+
+  /* ---------- guardar y leer ---------- */
+  // Datos guardados antes de esta versión: los días no traían id y los movimientos
+  // no traían diaId. El día y sus movimientos se guardaban con el mismo timestamp,
+  // así que se pueden ligar por fecha exacta.
+  function migrar(){
+    let cambio = false;
+    dias.forEach(d=>{
+      if(d.id) return;
+      d.id = nuevoId();
+      cambio = true;
+      movimientos.forEach(m=>{
+        if(!m.diaId && m.fecha === d.fecha) m.diaId = d.id;
+      });
+    });
+    return cambio;
+  }
+
+  async function cargar(){
+    try{
+      const crudo = await store.get('gaslp:datos');
+      if(crudo){
+        const d = JSON.parse(crudo);
+        dias = d.dias || [];
+        movimientos = d.movimientos || [];
+        if(d.inventario){
+          $('picados').value = d.inventario.picados;
+          $('vacios').value = d.inventario.vacios;
+        }
+      }
+    }catch(e){
+      dias = [];
+      movimientos = [];
+    }
+    if(migrar()) await persistir();
+    pintarHistorial();
+    inventario();
+    calcular();
+  }
+
+  async function persistir(){
+    try{
+      await store.set('gaslp:datos', JSON.stringify({
+        dias,
+        movimientos,
+        inventario:{
+          picados: parseInt($('picados').value,10) || 0,
+          vacios: parseInt($('vacios').value,10) || 0
+        }
+      }));
+      hayStorage = true;
+      return true;
+    }catch(e){
+      hayStorage = false;
+      return false;
+    }
+  }
+
+  let guardaInvTimer;
+  function guardarInventario(){
+    clearTimeout(guardaInvTimer);
+    guardaInvTimer = setTimeout(persistir, 600);
+  }
+
+  // Devuelve la fecha elegida en el input. Si es hoy, con la hora real;
+  // si es un día pasado, a las 12:00 locales para no cruzar de día por zona horaria.
+  function fechaDelDia(){
+    const v = $('fechaDia').value;
+    const hoy = new Date();
+    if(!v || v === fechaLocalISO(hoy)) return hoy;
+    const [y,m,d] = v.split('-').map(Number);
+    const f = new Date(y, m-1, d, 12, 0, 0);
+    return f > hoy ? null : f;
+  }
+
+  // Borra un día y, en cascada, los movimientos de caja que ese día generó.
+  // Los gastos capturados directo en la caja no llevan diaId y sobreviven.
+  function quitarDia(id){
+    dias = dias.filter(d => d.id !== id);
+    movimientos = movimientos.filter(m => m.diaId !== id);
+  }
+
+  const masReciente = (a,b) => new Date(b.fecha) - new Date(a.fecha);
+
+  $('btnGuardar').addEventListener('click', async ()=>{
+    const c = cuenta();
+    const g = gastoDelDia();
+    const nota = $('gdNota').value.trim();
+
+    const fecha = fechaDelDia();
+    if(!fecha){
+      $('estado').textContent = 'La fecha no puede ser futura.';
+      return;
+    }
+
+    const clave = fechaLocalISO(fecha);
+    const existente = dias.find(d => fechaLocalISO(new Date(d.fecha)) === clave);
+    if(existente){
+      const cual = fecha.toLocaleDateString('es-MX',{day:'2-digit',month:'long'});
+      if(!confirm('Ya hay una cuenta guardada del ' + cual + ' (' + dinero(existente.comision) + ' de comisión). ¿La reemplazo con esta?')){
+        $('estado').textContent = 'No se guardó: ya existía ese día.';
+        return;
+      }
+      quitarDia(existente.id);
+    }
+
+    const id = nuevoId();
+    const iso = fecha.toISOString();
+
+    dias.unshift({
+      id,
+      fecha: iso,
+      tanques: c.tanques,
+      kg: c.kgTotal,
+      bruto: centavos(c.bruto),
+      comision: centavos(c.comision),
+      abono: centavos(c.abono),
+      retiro: centavos(c.retiro),
+      gasto: g.completo ? {concepto:g.concepto, monto:centavos(g.monto)} : null,
+      nota: nota || null
+    });
+
+    if(c.abono > 0)
+      movimientos.unshift({diaId:id, fecha:iso, tipo:'abono', concepto:'Abono del día (10%)', monto:centavos(c.abono)});
+    if(c.retiro > 0)
+      movimientos.unshift({diaId:id, fecha:iso, tipo:'retiro', concepto:'Para salir tablas', monto:centavos(c.retiro)});
+    if(g.completo)
+      movimientos.unshift({diaId:id, fecha:iso, tipo:'gasto', concepto:g.concepto, monto:centavos(g.monto)});
+
+    // Un día capturado con fecha pasada debe acomodarse en su lugar, no arriba.
+    dias.sort(masReciente);
+    movimientos.sort(masReciente);
+
+    pintarHistorial();
+    $('estado').textContent = 'Guardando…';
+    const ok = await persistir();
+    $('btnLimpiar').click(); // limpia la captura (y de paso el estado), por eso el mensaje va después
+    $('estado').textContent = ok
+      ? (existente ? 'Día reemplazado.' : 'Día guardado.')
+      : 'Guardado solo en esta sesión.';
+  });
+
+  /* ---------- caja de ahorro ---------- */
+  function pintarCaja(){
+    const cifra = $('saldoCaja');
+    cifra.textContent = dinero(saldo);
+    cifra.classList.toggle('neg', saldo < 0);
+
+    const c = cuenta();
+    if(c.retiro > 0)
+      $('pieCaja').textContent = 'Hoy la caja pone ' + dinero(c.retiro) + ' para cubrir el día.';
+    else if(c.abono > 0)
+      $('pieCaja').textContent = 'Hoy se abonan ' + dinero(c.abono) + ' al guardar el día.';
+    else
+      $('pieCaja').textContent = 'Cada día se abona el 10% de la comisión.';
+
+    const caja = $('movs');
+    if(!movimientos.length){
+      caja.innerHTML = '<p class="vacio">Sin movimientos todavía.</p>';
+      return;
+    }
+    caja.innerHTML = '';
+    movimientos.slice(0,10).forEach((m,i)=>{
+      const f = new Date(m.fecha);
+      const entra = m.tipo === 'abono';
+      const fila = document.createElement('div');
+      fila.className = 'mov';
+      fila.innerHTML =
+        '<div>' +
+          '<div>' + m.concepto + '</div>' +
+          '<div class="f">' + f.toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) + '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<span class="m ' + (entra?'entra':'sale') + '">' + (entra?'+':'−') + dinero(m.monto) + '</span>' +
+          '<button data-m="'+i+'" aria-label="Borrar movimiento">×</button>' +
+        '</div>';
+      caja.appendChild(fila);
+    });
+  }
+
+  $('movs').addEventListener('click', async e=>{
+    const b = e.target.closest('button[data-m]');
+    if(!b) return;
+    movimientos.splice(+b.dataset.m, 1);
+    calcular();
+    await persistir();
+  });
+
+  $('btnGasto').addEventListener('click', async ()=>{
+    const concepto = $('gastoConcepto').value.trim();
+    const monto = parseFloat($('gastoMonto').value) || 0;
+    const caja = $('avisosCaja');
+    caja.innerHTML = '';
+
+    const error = txt => {
+      const d = document.createElement('div');
+      d.className = 'aviso';
+      d.textContent = txt;
+      caja.appendChild(d);
+    };
+
+    if(!concepto) return error('Escribe de qué fue el gasto.');
+    if(monto <= 0) return error('Escribe cuánto costó.');
+
+    movimientos.unshift({fecha:new Date().toISOString(), tipo:'gasto', concepto, monto:centavos(monto)});
+    $('gastoConcepto').value = '';
+    $('gastoMonto').value = '';
+    calcular();
+    if(saldo < 0) error('El gasto rebasó la caja. Quedó en ' + dinero(saldo) + '.');
+    await persistir();
+  });
+
+  function pintarHistorial(){
+    const caja = $('historial');
+    if(!dias.length){
+      caja.innerHTML = '<p class="vacio">Todavía no hay días guardados.</p>';
+      $('resumen').style.display = 'none';
+      return;
+    }
+    caja.innerHTML = '';
+    dias.slice(0,20).forEach((d,i)=>{
+      const f = new Date(d.fecha);
+      const extra = [];
+      if(d.gasto) extra.push(d.gasto.concepto + ' · ' + dinero(d.gasto.monto));
+      if(d.nota) extra.push(d.nota);
+      const fila = document.createElement('div');
+      fila.className = 'dia';
+      fila.innerHTML =
+        '<div>' +
+          '<div class="f">' + f.toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) + '</div>' +
+          '<div class="t">' + d.tanques + ' tanques · ' + d.kg + ' kg</div>' +
+          (extra.length ? '<div class="nota">' + extra.join(' — ') + '</div>' : '') +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:12px">' +
+          '<span class="c' + (d.comision<0?' neg':'') + '">' + dinero(d.comision) + '</span>' +
+          '<button data-id="'+d.id+'" aria-label="Borrar este día">×</button>' +
+        '</div>';
+      caja.appendChild(fila);
+    });
+    resumenMes();
+  }
+
+  $('historial').addEventListener('click', async e=>{
+    const b = e.target.closest('button[data-id]');
+    if(!b) return;
+    quitarDia(b.dataset.id);
+    pintarHistorial();
+    calcular(); // recalcula el saldo de la caja sin el abono/retiro/gasto del día borrado
+    await persistir();
+  });
+
+  function resumenMes(){
+    const hoy = new Date();
+    const delMes = dias.filter(d=>{
+      const f = new Date(d.fecha);
+      return f.getMonth()===hoy.getMonth() && f.getFullYear()===hoy.getFullYear();
+    });
+    const box = $('resumen');
+    if(!delMes.length){ box.style.display='none'; return; }
+
+    const suma = delMes.reduce((a,d)=>a+d.comision,0);
+    const abonos = delMes.reduce((a,d)=>a+(d.abono||0),0);
+    const retiros = delMes.reduce((a,d)=>a+(d.retiro||0),0);
+    const bajos = delMes.filter(d=>d.comision < 0).length;
+    const mes = hoy.toLocaleDateString('es-MX',{month:'long'});
+
+    const gastosMes = movimientos.filter(m=>{
+      const f = new Date(m.fecha);
+      return m.tipo==='gasto' && f.getMonth()===hoy.getMonth() && f.getFullYear()===hoy.getFullYear();
+    }).reduce((a,m)=>a+m.monto,0);
+
+    box.style.display = 'block';
+    box.innerHTML =
+      '<div class="r"><span>Días registrados en ' + mes + '</span><span>' + delMes.length + '</span></div>' +
+      '<div class="r"><span>Comisión acumulada</span><span>' + dinero(suma) + '</span></div>' +
+      '<div class="r"><span>Promedio por día</span><span>' + dinero(suma/delMes.length) + '</span></div>' +
+      (bajos ? '<div class="r"><span>Días en números rojos</span><span>' + bajos + '</span></div>' : '') +
+      '<div class="r"><span>Abonado a la caja</span><span>−' + dinero(abonos) + '</span></div>' +
+      (retiros ? '<div class="r"><span>Retirado de la caja</span><span>+' + dinero(retiros) + '</span></div>' : '') +
+      (gastosMes ? '<div class="r"><span>Imprevistos pagados por la caja</span><span>' + dinero(gastosMes) + '</span></div>' : '') +
+      '<div class="r"><span>Reparación de 4 picados</span><span>−' + dinero(REPARACION_MES) + '</span></div>' +
+      '<div class="r neta"><span>Quedó para los papás</span><span>' + dinero(suma - abonos + retiros - REPARACION_MES) + '</span></div>';
+  }
+
+  /* ---------- exportar a CSV ---------- */
+  const csvCampo = v => {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  };
+
+  function descargarCSV(nombre, filas){
+    // El BOM le dice a Excel que el archivo es UTF-8; sin él los acentos se rompen.
+    const blob = new Blob(['\uFEFF' + filas.map(f=>f.map(csvCampo).join(',')).join('\r\n')],
+      {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  }
+
+  const csvFecha = iso => new Date(iso).toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const csvMonto = n => (n || 0).toFixed(2);
+
+  $('btnCSV').addEventListener('click', ()=>{
+    if(!dias.length){
+      $('estado').textContent = '';
+      alert('Todavía no hay días guardados que exportar.');
+      return;
+    }
+    const filas = [['Fecha','Tanques','Kg','Venta bruta','Comisión','Abono a caja','Retiro de caja','Gasto imprevisto','Monto del gasto','Nota']];
+    // Del más viejo al más nuevo, como lo leería el contador.
+    [...dias].reverse().forEach(d=>{
+      filas.push([
+        csvFecha(d.fecha), d.tanques, d.kg,
+        csvMonto(d.bruto), csvMonto(d.comision), csvMonto(d.abono), csvMonto(d.retiro),
+        d.gasto ? d.gasto.concepto : '', d.gasto ? csvMonto(d.gasto.monto) : '',
+        d.nota || ''
+      ]);
+    });
+    descargarCSV('la-cuenta-dias-' + fechaLocalISO(new Date()) + '.csv', filas);
+  });
+
+  $('btnCSVCaja').addEventListener('click', ()=>{
+    if(!movimientos.length){
+      alert('Todavía no hay movimientos de caja que exportar.');
+      return;
+    }
+    const nombreTipo = {abono:'Abono', retiro:'Retiro', gasto:'Gasto'};
+    const filas = [['Fecha','Tipo','Concepto','Entra','Sale']];
+    [...movimientos].reverse().forEach(m=>{
+      filas.push([
+        csvFecha(m.fecha), nombreTipo[m.tipo] || m.tipo, m.concepto,
+        m.tipo === 'abono' ? csvMonto(m.monto) : '',
+        m.tipo !== 'abono' ? csvMonto(m.monto) : ''
+      ]);
+    });
+    filas.push(['','','Saldo final',csvMonto(saldo),'']);
+    descargarCSV('la-cuenta-caja-' + fechaLocalISO(new Date()) + '.csv', filas);
+  });
+
+  ponFechaHoy();
+  calcular();
+  cargar();
+})();
+</script>
+</body>
+</html>
