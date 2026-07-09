@@ -400,6 +400,7 @@
           </div>
 
           <button class="accion" id="btnGuardar" disabled>Guardar el día</button>
+          <button class="accion secundaria" id="btnWhats" disabled>Compartir por WhatsApp</button>
           <div class="estado" id="estado"></div>
         </div>
 
@@ -691,6 +692,7 @@
 
     const g = gastoDelDia();
     $('btnGuardar').disabled = !hay || (vendidos[45] > 0 && precio45 <= 0) || g.aMedias;
+    $('btnWhats').disabled = !hay || (vendidos[45] > 0 && precio45 <= 0);
     $('estado').textContent = '';
   }
 
@@ -943,6 +945,47 @@
     $('estado').textContent = ok
       ? (existente ? 'Día reemplazado.' : 'Día guardado.')
       : 'Guardado solo en esta sesión.';
+  });
+
+  /* ---------- compartir por WhatsApp ---------- */
+  // Arma el ticket de "Lo que sobra" en texto plano. Los *asteriscos* son
+  // negritas en WhatsApp.
+  function textoTicket(){
+    const c = cuenta();
+    const f = fechaDelDia() || new Date();
+    const L = [];
+    L.push('*LA CUENTA — ' + f.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'}) + '*');
+    L.push('');
+    L.push('Venta bruta: ' + dinero(c.bruto));
+    TANQUES.forEach(t=>{
+      const q = vendidos[t.kg];
+      if(!q) return;
+      const precio = t.precio !== null ? t.precio : precio45;
+      L.push('   ' + q + ' × ' + t.kg + ' kg — ' + dinero(q * precio));
+    });
+    L.push('   (' + c.tanques + (c.tanques===1?' tanque':' tanques') + ' · ' + c.kgTotal + ' kg)');
+    L.push('');
+    L.push('− Sueldos: ' + dinero(c.sueldos));
+    L.push('− Costo de planta: ' + dinero(c.costoPlanta) + ' (' + c.kgTotal + ' kg × $14.06)');
+    L.push('− Carburación: ' + dinero(CARBURACION) + ' (20 kg)');
+    L.push('');
+    L.push('*Comisión del día: ' + dinero(c.comision) + '*');
+    if(c.retiro > 0)
+      L.push('+ Retiro de la caja (para salir tablas): ' + dinero(c.retiro));
+    else
+      L.push('− Caja de ahorro (10%): ' + dinero(c.abono));
+    L.push('*Queda para los papás: ' + dinero(c.neta) + '*');
+    const g = gastoDelDia();
+    if(g.completo)
+      L.push('', 'Gasto imprevisto (sale de la caja): ' + g.concepto + ' — ' + dinero(g.monto));
+    const nota = $('gdNota').value.trim();
+    if(nota)
+      L.push('', 'Nota: ' + nota);
+    return L.join('\n');
+  }
+
+  $('btnWhats').addEventListener('click', ()=>{
+    window.open('https://wa.me/?text=' + encodeURIComponent(textoTicket()), '_blank');
   });
 
   /* ---------- caja de ahorro ---------- */
